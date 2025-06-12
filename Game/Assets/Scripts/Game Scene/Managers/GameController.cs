@@ -84,6 +84,7 @@ public class GameController : MonoBehaviourPun
     {
         CurrentTurn = (GameManager.Side)turn;
         UIManager.Instance.ShowTurn();
+        CardManager.Instance.OnTurnChange(); // <-- Add this line!
     }
 
     public void HighlightPlayableCardTiles(Card card)

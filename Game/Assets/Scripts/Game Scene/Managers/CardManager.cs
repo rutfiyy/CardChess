@@ -90,7 +90,10 @@ public class CardManager : MonoBehaviourPun
             if (card.isEndTurn)
             {
                 GameController.Instance.UnhighlightAllTiles();
-                GameController.Instance.EndTurn(); // FIXED: Use GameController, not GameManager
+                if (PhotonNetwork.IsMasterClient)
+                {
+                    GameController.Instance.EndTurn();
+                }
             }
         }
     }
