@@ -65,6 +65,7 @@ public class GameController : MonoBehaviourPun
             Deselect();
             if (PhotonNetwork.IsMasterClient)
             {
+                GameManager.Instance.CheckForGameEnd();
                 EndTurn();
             }
         }
