@@ -1,9 +1,13 @@
 package com.salim.chesscard.controller;
 
 import com.salim.chesscard.dto.RegisterRequest;
+import com.salim.chesscard.model.User;
 import com.salim.chesscard.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -17,15 +21,27 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        return userService.register(request)
-                ? ResponseEntity.ok("User registered successfully")
-                : ResponseEntity.badRequest().body("Username already exists");
+        User user = userService.registerAndReturnUser(request);
+        if (user != null) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("user_id", user.getId());
+            response.put("username", user.getUsername());
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body("Username already exists");
+        }
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody RegisterRequest request) {
-        return userService.login(request)
-                ? ResponseEntity.ok("Login successful")
-                : ResponseEntity.status(401).body("Invalid credentials");
+        User user = userService.loginAndReturnUser(request);
+        if (user != null) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("user_id", user.getId());
+            response.put("username", user.getUsername());
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(401).body("Invalid credentials");
+        }
     }
 }

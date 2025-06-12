@@ -31,4 +31,23 @@ public class UserService {
         Optional<User> user = userRepository.findByUsername(request.getUsername());
         return user.isPresent() && passwordEncoder.matches(request.getPassword(), user.get().getPassword());
     }
+
+    // --- New methods for AuthController ---
+
+    public User registerAndReturnUser(RegisterRequest request) {
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) return null;
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        return userRepository.save(user);
+    }
+
+    public User loginAndReturnUser(RegisterRequest request) {
+        Optional<User> user = userRepository.findByUsername(request.getUsername());
+        if (user.isPresent() && passwordEncoder.matches(request.getPassword(), user.get().getPassword())) {
+            return user.get();
+        }
+        return null;
+    }
 }

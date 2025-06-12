@@ -30,6 +30,11 @@ public class AuthManager : MonoBehaviour
 
         if (request.result == UnityWebRequest.Result.Success)
         {
+            // Parse user_id and username from JSON response
+            UserResponse response = JsonUtility.FromJson<UserResponse>(request.downloadHandler.text);
+            UserSessionManager.Instance.SetUsername(response.username);
+            UserSessionManager.Instance.SetUserId(response.user_id);
+
             Debug.Log("✅ Register Success: " + request.downloadHandler.text);
         }
         else
@@ -53,7 +58,11 @@ public class AuthManager : MonoBehaviour
 
         if (request.result == UnityWebRequest.Result.Success)
         {
-            UserSessionManager.Instance.SetUsername(username);
+            // Parse user_id and username from JSON response
+            UserResponse response = JsonUtility.FromJson<UserResponse>(request.downloadHandler.text);
+            UserSessionManager.Instance.SetUsername(response.username);
+            UserSessionManager.Instance.SetUserId(response.user_id);
+
             Debug.Log("✅ Login Success: " + request.downloadHandler.text);
         }
         else
@@ -68,5 +77,12 @@ public class AuthManager : MonoBehaviour
     {
         public string username;
         public string password;
+    }
+
+    [System.Serializable]
+    public class UserResponse
+    {
+        public long user_id;
+        public string username;
     }
 }
