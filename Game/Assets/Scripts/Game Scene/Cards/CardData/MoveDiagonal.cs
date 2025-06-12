@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Cards/MoveDiagonal")]
@@ -16,9 +15,10 @@ public class MoveDiagonal : Card
     public override bool CanPlay(Tile tile, Piece piece)
     {
         // Only allow selection of friendly, movable, non-pawn piece
+        // Multiplayer: Only allow local player to select their own piece
         return piece != null
             && piece.canMove
-            && piece.isWhite == GameManager.Instance.isWhiteTurn
+            && piece.IsOwnedByLocalPlayer()
             && !(piece is Pawn); // Exclude pawns
     }
 

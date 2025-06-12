@@ -39,21 +39,20 @@ public class Tile : MonoBehaviour
 
     private void OnMouseDown()
     {
-        // Force move logic
+        // Forced move logic
         if (GameController.Instance.isForcedMove)
         {
             Piece forced = GameController.Instance.forcedMovePiece;
-            
+
             if (GameController.Instance.selectedPiece == forced && GameController.Instance.IsLegalMove(position))
             {
-                forced.MoveTo(BoardManager.Instance.GetTiles(), position);
+                GameController.Instance.TryMoveSelectedPiece(position);
                 forced.diagonalMove = false;
                 forced.orthogonalMove = false;
                 forced.canAttack = true; // Re-enable attack after forced move
                 GameController.Instance.forcedMovePiece = null;
                 GameController.Instance.isForcedMove = false;
                 GameController.Instance.Deselect();
-                GameManager.Instance.EndTurn(); // <-- End turn after forced move
                 return;
             }
             Debug.Log("Forced move piece is not selected.");
@@ -125,7 +124,8 @@ public class Tile : MonoBehaviour
         // --- No piece selected yet ---
         if (GameController.Instance.selectedPiece == null)
         {
-            if (currentPiece != null && currentPiece.isWhite == GameManager.Instance.isWhiteTurn)
+            // Multiplayer: Only allow local player to select their own pieces
+            if (currentPiece != null && GameManager.Instance.CanControlPiece(currentPiece))
             {
                 GameController.Instance.SelectPiece(currentPiece);
             }
@@ -141,12 +141,10 @@ public class Tile : MonoBehaviour
                     CardManager.Instance.OnCapture();
                 }
 
-                // Move selected piece to this tile
-                GameController.Instance.selectedPiece.MoveTo(BoardManager.Instance.GetTiles(), position);
+                GameController.Instance.TryMoveSelectedPiece(position);
                 GameController.Instance.Deselect();
-                GameManager.Instance.EndTurn();
             }
-            else if (currentPiece != null && currentPiece.isWhite == GameController.Instance.selectedPiece.isWhite)
+            else if (currentPiece != null && GameManager.Instance.CanControlPiece(currentPiece))
             {
                 // Select different friendly piece
                 GameController.Instance.SelectPiece(currentPiece);

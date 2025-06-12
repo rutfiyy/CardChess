@@ -9,7 +9,7 @@ public class UIManager : MonoBehaviour
     public Transform handPanel;
     public GameObject cardUIPrefab;
     public TextMeshProUGUI energyText;
-    public TextMeshProUGUI announcementText; 
+    public TextMeshProUGUI announcementText;
     public TextMeshProUGUI turnText;
     public TextMeshProUGUI winnerText;
     public float spread = 1.6f; // Distance in pixels between card
@@ -23,7 +23,11 @@ public class UIManager : MonoBehaviour
     public void ShowTurn()
     {
         if (turnText != null)
-            turnText.text = GameManager.Instance.isWhiteTurn ? "White's Turn" : "Black's Turn";
+        {
+            // Multiplayer: Show whose turn it is
+            var turn = GameController.Instance != null ? GameController.Instance.CurrentTurn : GameManager.Side.White;
+            turnText.text = turn == GameManager.Side.White ? "White's Turn" : "Black's Turn";
+        }
     }
 
     public void ShowWinner(bool whiteWon)
@@ -39,6 +43,12 @@ public class UIManager : MonoBehaviour
             announcementText.text = message;
             announcementText.gameObject.SetActive(true);
         }
+    }
+
+    public void HideAnnouncement()
+    {
+        if (announcementText != null)
+            announcementText.gameObject.SetActive(false);
     }
 
     public void UpdateHand()
@@ -75,6 +85,10 @@ public class UIManager : MonoBehaviour
                 {
                     cardUI.Setup(card);
                 }
+                // Disable card interaction if not local player's turn
+                Button cardButton = ui.GetComponent<Button>();
+                if (cardButton != null)
+                    cardButton.interactable = GameManager.Instance.IsLocalPlayersTurn();
             }
         }
 

@@ -1,7 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Photon.Pun;
 
-public class CardManager : MonoBehaviour
+public class CardManager : MonoBehaviourPun
 {
     public static CardManager Instance;
     public List<Card> hand = new();
@@ -51,23 +52,89 @@ public class CardManager : MonoBehaviour
 
     public bool TryPlayCard(Card card, List<Piece> targets)
     {
+        // Only allow local player to play cards on their turn
+        if (!GameManager.Instance.IsLocalPlayersTurn())
+            return false;
+
         if (!hand.Contains(card) || energy < card.energyCost || targets.Count != card.requiredTargets)
             return false;
 
-        card.Play(targets);
-        energy -= card.energyCost;
-        hand.Remove(card);
+        // Network the card play
+        photonView.RPC("RPC_PlayCard", RpcTarget.All, card.cardName, SerializeTargets(targets));
 
-        // Cleanup and end turn
+        // Local cleanup
         selectedCard = null;
         selectedTargets.Clear();
-        UIManager.Instance.UpdateHand();
-        if (card.isEndTurn)
-        {
-            GameController.Instance.UnhighlightAllTiles();
-            GameManager.Instance.EndTurn();
-        }
         return true;
+    }
+
+    [PunRPC]
+    private void RPC_PlayCard(string cardName, string serializedTargets)
+    {
+        Card card = FindCardByName(cardName);
+        List<Piece> targets = DeserializeTargets(serializedTargets);
+
+        if (card == null)
+        {
+            Debug.LogWarning("Card not found: " + cardName);
+            return;
+        }
+
+        if (hand.Contains(card) && energy >= card.energyCost && targets.Count == card.requiredTargets)
+        {
+            card.Play(targets);
+            energy -= card.energyCost;
+            hand.Remove(card);
+
+            UIManager.Instance.UpdateHand();
+            if (card.isEndTurn)
+            {
+                GameController.Instance.UnhighlightAllTiles();
+                GameController.Instance.EndTurn(); // FIXED: Use GameController, not GameManager
+            }
+        }
+    }
+
+    private string SerializeTargets(List<Piece> targets)
+    {
+        // Serialize as "x1,y1;x2,y2"
+        List<string> parts = new List<string>();
+        foreach (var piece in targets)
+        {
+            parts.Add($"{piece.boardPosition.x},{piece.boardPosition.y}");
+        }
+        return string.Join(";", parts);
+    }
+
+    private List<Piece> DeserializeTargets(string data)
+    {
+        List<Piece> result = new List<Piece>();
+        if (string.IsNullOrEmpty(data)) return result;
+        Tile[,] tiles = BoardManager.Instance.GetTiles();
+        string[] parts = data.Split(';');
+        foreach (var part in parts)
+        {
+            if (string.IsNullOrEmpty(part)) continue;
+            string[] xy = part.Split(',');
+            int x = int.Parse(xy[0]);
+            int y = int.Parse(xy[1]);
+            Piece p = tiles[x, y].currentPiece;
+            if (p != null) result.Add(p);
+        }
+        return result;
+    }
+
+    private Card FindCardByName(string name)
+    {
+        foreach (var c in hand)
+        {
+            if (c.cardName == name) return c;
+        }
+        foreach (var c in allCards)
+        {
+            if (c.cardName == name) return c;
+        }
+        return null;
     }
 
     public void DrawCard()
@@ -91,7 +158,8 @@ public class CardManager : MonoBehaviour
 
     public void SelectCard(Card card)
     {
-        if (!GameManager.Instance.isWhiteTurn)
+        // Only allow local player to select cards on their turn
+        if (!GameManager.Instance.IsLocalPlayersTurn())
         {
             Debug.Log("Cannot select card: Not your turn.");
             return;
@@ -103,9 +171,7 @@ public class CardManager : MonoBehaviour
         }
         selectedCard = card;
         selectedTargets.Clear();
-        //Debug.Log("Selected card: " + card.cardName);
 
-        // Use the card's requiredTargets
         if (card.requiredTargets > 1)
         {
             UIManager.Instance.ShowAnnouncement($"Select {card.requiredTargets} pieces.");
@@ -120,6 +186,5 @@ public class CardManager : MonoBehaviour
     {
         selectedCard = null;
         GameController.Instance.UnhighlightAllTiles();
-        //Debug.Log("Unselected card");
     }
 }

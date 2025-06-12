@@ -1,6 +1,7 @@
 using UnityEngine;
+using Photon.Pun;
 
-public class BoardManager : MonoBehaviour
+public class BoardManager : MonoBehaviourPun
 {
     public Transform boardCenter;
     public GameObject tilePrefab;
@@ -29,7 +30,11 @@ public class BoardManager : MonoBehaviour
     void Start()
     {
         CreateBoard();
-        SpawnPieces();
+        // Only MasterClient spawns pieces, then syncs via RPC
+        if (PhotonNetwork.IsMasterClient)
+        {
+            photonView.RPC("RPC_SetupBoardFromFEN", RpcTarget.AllBuffered, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        }
     }
 
     void CreateBoard()
@@ -58,19 +63,29 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    void SpawnPieces()
+    // Multiplayer: Only MasterClient sends FEN, all clients spawn pieces identically
+    [PunRPC]
+    public void RPC_SetupBoardFromFEN(string fen)
     {
-        string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         SetupBoardFromFEN(fen);
     }
 
     public void SetupBoardFromFEN(string fen)
     {
+        // Clear existing pieces
+        for (int x = 0; x < 8; x++)
+            for (int y = 0; y < 8; y++)
+            {
+                if (tiles[x, y].currentPiece != null)
+                {
+                    Destroy(tiles[x, y].currentPiece.gameObject);
+                    tiles[x, y].currentPiece = null;
+                }
+            }
+
         // FEN string's first part contains only piece placement info
         string[] parts = fen.Split(' ');
         string[] rows = parts[0].Split('/');
-
-        Vector3 offset = new Vector3(-3.5f, -3.5f, 0f);
 
         for (int y = 0; y < 8; y++)
         {
@@ -100,6 +115,9 @@ public class BoardManager : MonoBehaviour
                         Piece piece = pieceObj.GetComponent<Piece>();
                         piece.boardPosition = boardPos;
                         tiles[boardPos.x, boardPos.y].currentPiece = piece;
+
+                        // Debug log for troubleshooting
+                        //Debug.Log($"Spawned {c} at {boardPos} ({spawnPos})");
                     }
 
                     x++;

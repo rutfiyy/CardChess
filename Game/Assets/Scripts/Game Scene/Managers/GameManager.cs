@@ -1,31 +1,45 @@
 using UnityEngine;
+using Photon.Pun;
+using Photon.Realtime;
 
-public class GameManager : MonoBehaviour
+public class GameManager : MonoBehaviourPunCallbacks
 {
     public static GameManager Instance;
-    public bool isWhiteTurn = true;
+
+    public enum Side { White, Black }
+    public Side LocalSide { get; private set; }
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        Instance = this;
     }
 
-    public void EndTurn()
+    private void Start()
     {
-        isWhiteTurn = !isWhiteTurn;
-        UIManager.Instance.ShowTurn();
-        if (isWhiteTurn)
-        {
-            // Notify card manager (energy gain, card draw, duration decrease, etc.)
-            CardManager.Instance.OnTurnChange();
+        AssignPlayerSides();
+    }
 
-            // Update UI at turn end
-            UIManager.Instance.UpdateHand();
-        }
+    private void AssignPlayerSides()
+    {
+        // MasterClient is always white, second player is black
+        if (PhotonNetwork.IsMasterClient)
+            LocalSide = Side.White;
+        else
+            LocalSide = Side.Black;
+    }
 
-        CheckForGameEnd();
-        Debug.Log("Turn Ended. Now " + (isWhiteTurn ? "White" : "Black") + "'s turn.");
+    public bool IsLocalPlayersTurn()
+    {
+        // Use GameController's turn info
+        return GameController.Instance.CurrentTurn == LocalSide;
+    }
+
+    // Add this method for multiplayer piece control
+    public bool CanControlPiece(Piece piece)
+    {
+        // Only allow the local player to control their own pieces on their turn
+        return (LocalSide == Side.White && piece.isWhite && IsLocalPlayersTurn())
+            || (LocalSide == Side.Black && !piece.isWhite && IsLocalPlayersTurn());
     }
 
     public void CheckForGameEnd()
@@ -49,18 +63,24 @@ public class GameManager : MonoBehaviour
 
         if (!whiteKingExists)
         {
-            UIManager.Instance.ShowWinner(false); // Black wins
+            photonView.RPC("RPC_ShowWinner", RpcTarget.All, false); // Black wins
             EndGame();
         }
         else if (!blackKingExists)
         {
-            UIManager.Instance.ShowWinner(true); // White wins
+            photonView.RPC("RPC_ShowWinner", RpcTarget.All, true); // White wins
             EndGame();
         }
     }
 
+    [PunRPC]
+    private void RPC_ShowWinner(bool whiteWins)
+    {
+        UIManager.Instance.ShowWinner(whiteWins);
+    }
+
     private void EndGame()
     {
-        // End the game
+        PhotonNetwork.LeaveRoom();
     }
 }

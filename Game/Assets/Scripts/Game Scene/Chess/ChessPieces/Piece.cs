@@ -15,9 +15,19 @@ public abstract class Piece : MonoBehaviour
     public StatusEffect currentStatus = StatusEffect.None;
     public int statusEffectDuration = 0;
 
+    // Multiplayer: Only allow local player to interact with their own pieces
+    public bool IsOwnedByLocalPlayer()
+    {
+        // White = MasterClient, Black = not MasterClient
+        return (isWhite && GameManager.Instance.LocalSide == GameManager.Side.White && GameManager.Instance.IsLocalPlayersTurn())
+            || (!isWhite && GameManager.Instance.LocalSide == GameManager.Side.Black && GameManager.Instance.IsLocalPlayersTurn());
+    }
+
     public virtual List<Vector2Int> GetLegalMoves(Tile[,] board)
     {
         List<Vector2Int> moves = new List<Vector2Int>();
+        // Only allow local player to get moves for their own pieces on their turn
+        if (!GameManager.Instance.CanControlPiece(this)) return moves;
 
         if (diagonalMove)
         {

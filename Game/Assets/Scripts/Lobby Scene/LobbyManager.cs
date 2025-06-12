@@ -90,6 +90,6 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        SceneManager.LoadScene("MainMenu"); // navigate back when leaving room
+        SceneManager.LoadScene("Main Menu"); // navigate back when leaving room
     }
 }

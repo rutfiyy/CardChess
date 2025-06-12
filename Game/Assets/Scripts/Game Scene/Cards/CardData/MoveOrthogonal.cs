@@ -11,12 +11,14 @@ public class MoveOrthogonal : Card
         targetsEnemy = false;
         isEndTurn = false; // This card does not end the turn
     }
+
     public override bool CanPlay(Tile tile, Piece piece)
     {
         // Only allow selection of friendly, movable, non-pawn piece
+        // Multiplayer: Only allow local player to select their own piece
         return piece != null
             && piece.canMove
-            && piece.isWhite == GameManager.Instance.isWhiteTurn
+            && piece.IsOwnedByLocalPlayer()
             && !(piece is Pawn); // Exclude pawns
     }
 

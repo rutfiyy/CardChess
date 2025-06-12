@@ -1,7 +1,8 @@
 using UnityEngine;
+using Photon.Pun;
 using System.Collections.Generic;
 
-public class GameController : MonoBehaviour
+public class GameController : MonoBehaviourPun
 {
     public static GameController Instance;
 
@@ -10,6 +11,8 @@ public class GameController : MonoBehaviour
     public bool isForcedMove = false;
     public List<Vector2Int> legalMoves = new List<Vector2Int>();
 
+    public GameManager.Side CurrentTurn = GameManager.Side.White;
+
     private void Awake() => Instance = this;
 
     public Color lightTileHighlightColor = Color.red;
@@ -17,17 +20,70 @@ public class GameController : MonoBehaviour
 
     public void SelectPiece(Piece piece)
     {
-        UnhighlightLegalMoves(); // Unhighlight previous moves
+        if (!CanControlPiece(piece)) return;
+        UnhighlightLegalMoves();
         selectedPiece = piece;
         legalMoves = piece.GetLegalMoves(BoardManager.Instance.GetTiles());
         HighlightLegalMoves();
         Debug.Log($"Selected piece: {piece.name} status: {piece.currentStatus}, legal moves: {legalMoves.Count}");
     }
+
     public void Deselect()
     {
         UnhighlightLegalMoves();
         selectedPiece = null;
         legalMoves.Clear();
+    }
+
+    public bool CanControlPiece(Piece piece)
+    {
+        // Only allow local player to select their own pieces on their turn
+        return GameManager.Instance.IsLocalPlayersTurn() &&
+               ((CurrentTurn == GameManager.Side.White && piece.isWhite) ||
+                (CurrentTurn == GameManager.Side.Black && !piece.isWhite));
+    }
+
+    public void TryMoveSelectedPiece(Vector2Int target)
+    {
+        if (selectedPiece == null) return;
+        if (!IsLegalMove(target)) return;
+        if (!GameManager.Instance.IsLocalPlayersTurn()) return;
+
+        // Send the move by coordinates, not by object reference
+        photonView.RPC("RPC_MovePiece", RpcTarget.All, selectedPiece.boardPosition.x, selectedPiece.boardPosition.y, target.x, target.y);
+        Deselect();
+    }
+
+    [PunRPC]
+    private void RPC_MovePiece(int fromX, int fromY, int toX, int toY)
+    {
+        Tile[,] board = BoardManager.Instance.GetTiles();
+        Piece piece = board[fromX, fromY].currentPiece;
+        if (piece != null)
+        {
+            piece.MoveTo(board, new Vector2Int(toX, toY));
+            Deselect();
+            if (PhotonNetwork.IsMasterClient)
+            {
+                EndTurn();
+            }
+        }
+    }
+
+    public void EndTurn()
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            CurrentTurn = (CurrentTurn == GameManager.Side.White) ? GameManager.Side.Black : GameManager.Side.White;
+            photonView.RPC("RPC_SyncTurn", RpcTarget.All, (int)CurrentTurn);
+        }
+    }
+
+    [PunRPC]
+    private void RPC_SyncTurn(int turn)
+    {
+        CurrentTurn = (GameManager.Side)turn;
+        UIManager.Instance.ShowTurn();
     }
 
     public void HighlightPlayableCardTiles(Card card)
